@@ -10,6 +10,7 @@
 #include "timer.h"
 #include "platform.h"
 
+
 tcb * first = NULL;
 tcb * second = NULL;
 tcb * third = NULL;
@@ -18,6 +19,7 @@ struct message_queue loop_queue;
 
 int test_cross_thread_task(int arg1,int arg2,int arg3)
 {
+    t_printf("idle percentage is %d \r\n",get_idle_percentage());
     return arg1 + arg2 + arg3;
 }
 
@@ -39,8 +41,20 @@ void test_thread1(void * arg)
     start_timer(&tm4);
 
     while(1) {
-        t_printf("in thread1 will delay \r\n");
-        delay_ms(1000);
+        //t_printf("in thread1 will delay \r\n");
+        
+        int i = 100000;
+        int j = 100000;
+        int k = 100000;
+        int m = 100000;
+
+        for(;i >0;--i)
+            for(;j>0;--j)
+                for(;k>0;--k)
+                    for(;m>0;--m);
+
+
+        delay_ms(300);
     }
 }
 
@@ -77,10 +91,10 @@ void main()
 
     third = create_thread(512,&thread_loop,20,(void *)&loop_queue,"test3");
 
-    second = create_thread(256,&test_thread2,11,(void*) 100,"test2");
+    second = create_thread(256,&test_thread2,10,(void*) 100,"test2");
 
     //test create thread
-    first = create_thread(256,&test_thread1,10,(void *)10,"test1");
+    first = create_thread(256,&test_thread1,11,(void *)10,"test1");
     if(first) {
         t_printf("create thread success \r\n");
 

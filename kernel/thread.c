@@ -1,14 +1,18 @@
 #include <stdio.h>
 #include <stdint.h>
+#include "kernel_config.h"
 #include "thread.h"
 #include "rbtree_augmented.h"
 #include "scheduler.h"
 #include "bottom_half.h"
 #include "timer.h"
 #include "platform.h"
+#include "sys_tick.h"
 
 tcb * cur_tcb_ptr = NULL;
 tcb * highest_priority_tcb_ptr = NULL;
+
+static tcb * idle = NULL;
 
 extern void switch_to_thread_mode();
 
@@ -33,7 +37,7 @@ void find_high_ready_thread(void )
 void start_os()
 {
     /* create idle thread */
-    tcb * idle = create_thread(IDLE_STACK_SIZE,idle_thread,
+    idle = create_thread(IDLE_STACK_SIZE,idle_thread,
             IDLE_THREAD_PRIORITY,(void *)0,"idle_thread");
     if(!idle) {
         return;
@@ -47,7 +51,10 @@ void start_os()
 
     init_timer_manager();
 
+    /* the first high_rdy task must not be idle */
     find_high_ready_thread();
+
+    mark_start_tick();
 
     switch_to_thread_mode();
 }
@@ -82,6 +89,14 @@ void schedule(void)
         //sched_unlock();
         enable_interrupt();
         return;
+    }
+
+    if(highest_priority_tcb_ptr == idle) {
+        mark_enter_idle();
+    }
+
+    if(cur_tcb_ptr == idle) {
+        mark_exit_idle();
     }
     
     /* trigger pendsv exception */

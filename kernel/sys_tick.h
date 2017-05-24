@@ -10,5 +10,10 @@
 void sys_tick_init(void);
 uint32_t get_sys_tick();
 
+
+void mark_start_tick();
+void mark_enter_idle();
+void mark_exit_idle();
+int get_idle_percentage();
 #endif //_SYS_TICK_H_
 

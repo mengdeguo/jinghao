@@ -6,7 +6,7 @@
 #include "thread.h"
 
 
-#define MS_TO_TICKS(ms) ((ms) / 1000 * SYSTICK_HZ)
+#define MS_TO_TICKS(ms) ((ms) * SYSTICK_HZ / 1000 )
 
 void delay_ms(uint32_t ms);
 void delay_ticks_procedure(void);

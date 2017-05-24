@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "kernel_config.h"
 #include "sys_tick.h"
 #include "bottom_half.h"
 #include "timer.h"
@@ -34,3 +35,55 @@ void sys_tick_init(void)
                      SysTick_CTRL_TICKINT_Msk   |
                      SysTick_CTRL_ENABLE_Msk;   /* Enable SysTick IRQ and SysTick Timer */
 }
+
+
+#if ENABLE(CALCULATE_CPU_LOAD)
+static uint32_t system_start_tick   = 0;
+static uint32_t total_idle_ticks    = 0;
+
+static uint32_t enter_idle_tick     = 0;
+
+void mark_start_tick()
+{
+    system_start_tick = get_sys_tick();
+}
+
+void mark_enter_idle()
+{
+    enter_idle_tick = get_sys_tick();
+}
+
+void mark_exit_idle()
+{
+    /* only used when test, so don't worry about data overflow */
+    total_idle_ticks += (get_sys_tick() - enter_idle_tick );
+}
+
+int get_idle_percentage()
+{
+    return total_idle_ticks * 100 / (get_sys_tick() - system_start_tick);
+}
+
+#else //ENABLE(CALCULATE_CPU_LOAD)
+
+void mark_start_tick()
+{
+
+}
+
+void mark_enter_idle()
+{
+
+}
+
+void mark_exit_idle()
+{
+
+}
+
+int get_idle_percentage()
+{
+    return 0;
+}
+
+#endif //ENABLE(CALCULATE_CPU_LOAD)
