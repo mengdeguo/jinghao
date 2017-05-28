@@ -11,7 +11,7 @@ int message_queue_init(struct message_queue * queue)
 
     memset(queue->queue_array,0,sizeof(void *) * MAX_QUEUE_ITEM);
 
-    mutex_init(&queue->queue_mutex);
+    mutex_init(&queue->queue_mutex,RECU_NORMAL);
     condition_init(&queue->queue_condition);
 
     return 0;

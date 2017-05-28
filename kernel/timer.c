@@ -14,7 +14,7 @@ static struct timer_manager manager;
 void init_timer_manager(void)
 {
     manager.count = 0;
-    mutex_init(&manager.mutex);
+    mutex_init(&manager.mutex,RECU_NORMAL);
     INIT_LIST_HEAD(&manager.head);
 }
 

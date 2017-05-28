@@ -5,13 +5,17 @@ extern tcb * cur_tcb_ptr;
 
 /**********************************************************/
 
-void mutex_init(struct mutex *mutex)
+void mutex_init(struct mutex *mutex, mutex_recusive recusive)
 {
     disable_interrupt();
 
     mutex->root.rb_node = NULL;
     mutex->avaliable    = AVALIABLE;
     mutex->state        = MUTEX_READY;
+
+    mutex->recusive     = recusive;
+    mutex->owner        = NULL;
+    mutex->owner_count  = 0;
 
     enable_interrupt();
 }
@@ -26,7 +30,7 @@ int mutex_release(struct mutex * mutex)
     
     if(mutex->root.rb_node != NULL) {
         enable_interrupt();
-        return -1;
+        return ERR_FAIL;
     }
 
     mutex->state = MUTEX_DESTROY;
@@ -44,20 +48,35 @@ int mutex_lock(struct mutex *mutex)
 
     if(mutex->state != MUTEX_READY) {
         enable_interrupt();
-        return -1;
+        return ERR_FAIL;
     }
 
     if(mutex->avaliable == AVALIABLE) {
         mutex->avaliable = ACQUIRED;
 
+        if(mutex->recusive == RECUSIVE) {
+            mutex->owner = cur_tcb_ptr;
+            mutex->owner_count++;
+        }
+
         /* here the value pend_ret could be ignored */
-        if(cur_tcb_ptr)
-            cur_tcb_ptr->pend_ret = PEND_RET_OK;
+        cur_tcb_ptr->pend_ret = PEND_RET_OK;
 
         enable_interrupt();
 
         return 0;
     } 
+
+    if((mutex->recusive == RECUSIVE) && (mutex->owner == cur_tcb_ptr)) {
+        mutex->owner_count++;
+        
+        /* here the value pend_ret could be ignored */
+        cur_tcb_ptr->pend_ret = PEND_RET_OK;
+
+        enable_interrupt();
+
+        return 0;
+    }
 
     /* 
      * the mutex is acquired by some other thread,
@@ -74,7 +93,7 @@ int mutex_lock(struct mutex *mutex)
 
     schedule();
 
-    /* comes here, means acquire mutex */
+    /* comes here, means acquire mutex, it can not be timeout */
 
     /* do some check about the pend_ret */
     ret = (cur_tcb_ptr->pend_ret == PEND_RET_OK) ? 0 : ERR_TIMEOUT;
@@ -89,7 +108,16 @@ int mutex_unlock(struct mutex * mutex)
     if(mutex->state != MUTEX_READY) {
         enable_interrupt();
 
-        return -1;
+        return ERR_FAIL;
+    }
+
+    if(mutex->recusive == RECUSIVE) {
+        mutex->owner_count --;
+
+        if(mutex->owner_count > 0) {
+            enable_interrupt();
+            return 0;
+        }
     }
 
     mutex->avaliable = AVALIABLE;
@@ -107,7 +135,7 @@ int mutex_unlock(struct mutex * mutex)
     if(!active_tcb) {
         enable_interrupt();
 
-        return -1;
+        return ERR_FAIL;
     }
 
     remove_tcb_from_rb_tree(&mutex->root,active_tcb);
@@ -121,6 +149,11 @@ int mutex_unlock(struct mutex * mutex)
     add_to_ready_rb_tree(active_tcb);
     
     mutex->avaliable = ACQUIRED;
+
+    if(mutex->recusive == RECUSIVE) {
+        mutex->owner = active_tcb;
+        mutex->owner_count++;
+    }
 
     enable_interrupt();
 

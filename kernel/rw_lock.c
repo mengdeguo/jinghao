@@ -3,7 +3,7 @@
 
 void rwlock_init(struct rw_lock *lock)
 {
-	mutex_init(&(lock->reader_mutex));
+	mutex_init(&(lock->reader_mutex),RECU_NORMAL);
 	semaphore_init(&(lock->rw_lock),1);
 
 	lock->reader_count = 0;
