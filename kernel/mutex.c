@@ -1,5 +1,4 @@
-#include "mutex.h"
-#include "scheduler.h"
+#include "kernel_header.h"
 
 extern tcb * cur_tcb_ptr;
 
@@ -160,5 +159,17 @@ int mutex_unlock(struct mutex * mutex)
     schedule();
 
     return 0;
+}
+
+int is_mutex_init(struct mutex * mutex)
+{
+
+    int ret;
+
+    disable_interrupt();
+    ret = mutex->state == MUTEX_READY;
+    enable_interrupt();
+
+    return ret;
 }
 

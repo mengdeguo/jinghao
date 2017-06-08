@@ -4,21 +4,11 @@
 #include <stdint.h>
 #include "rbtree_augmented.h"
 #include "list.h"
-#include "mw300.h"
+#include "platform.h"
 
-/*
- * according to the size of the stack elements
- * */
-typedef uint32_t    stack_element;
-
-
-/*
- * task priority range :0-255 ,255 is used for idle task
- * */
-typedef uint8_t     task_priority;
 
 #define IDLE_THREAD_PRIORITY    (0xff)
-#define IDLE_STACK_SIZE         (64)
+#define IDLE_STACK_SIZE         (128)
 
 #define  NVIC_INT_CTRL                      *((uint32_t *)0xE000ED04)
 #define  NVIC_PENDSVSET                                    0x10000000
@@ -40,19 +30,6 @@ extern uint32_t NVIC_PENDSV_PRI;
 
 typedef void (* thread_entry)(void *);
 
-typedef enum  {
-    TASK_NONE = 0,
-    TASK_RUNNING,
-    TASK_PENDING,
-    TASK_STOPED,
-}task_state;
-
-typedef enum {
-    PEND_RET_OK         = 0,
-    PEND_RET_TIMEOUT,
-}pend_result;
-
-
 typedef struct tcb_t
 {
     stack_element       *tsp;               //thread stack pointer, must be the first element
@@ -68,11 +45,15 @@ typedef struct tcb_t
     const char *        name;               //name of the thread
 }tcb;
 
-tcb * create_thread(uint32_t stack_size, thread_entry entry,task_priority priority,void * arg,const char * name);
+int create_thread(tcb * m_tcb,stack_element * stack,uint32_t stack_size, thread_entry entry,task_priority priority,void * arg,const char * name);
 void destroy_thread(tcb * thread);
 void set_cur_tcb(tcb * cur);
 void set_high_ready_tcb(tcb * high_rdy);
 void start_os(void);
 void schedule(void);
+const char * get_current_thread_name();
+
+int install_idle_hook(void (*hook)(void));
+void remove_idle_hook(void (*hook)(void));
 
 #endif //_THREAD_H_

@@ -1,26 +1,71 @@
 #include <stdio.h>
 #include <stdint.h>
-#include "kernel_config.h"
-#include "thread.h"
-#include "rbtree_augmented.h"
-#include "scheduler.h"
-#include "bottom_half.h"
-#include "timer.h"
+#include "kernel_header.h"
 #include "platform.h"
-#include "sys_tick.h"
 
 tcb * cur_tcb_ptr = NULL;
 tcb * highest_priority_tcb_ptr = NULL;
 
-static tcb * idle = NULL;
+static tcb idle;
+static stack_element idle_stack[IDLE_STACK_SIZE];
+
+
+#define IDLE_HOOK_COUNT 5
+static void (*g_idle_hooks[IDLE_HOOK_COUNT])(void) = { NULL };
+
+int install_idle_hook(void (*hook)(void))
+{
+    int i = 0;
+    
+    while(i < IDLE_HOOK_COUNT) {
+        if(g_idle_hooks[i] == NULL) {
+            g_idle_hooks[i] = hook;
+            break;
+        }
+
+        ++i;
+    }
+    
+    return (i < IDLE_HOOK_COUNT) ? 0 : -1;
+}
+
+void remove_idle_hook(void (*hook)(void))
+{
+    int i = 0;
+
+    while(i < IDLE_HOOK_COUNT) {
+        if(g_idle_hooks[i] == hook) {
+            g_idle_hooks[i] = NULL;
+            break;
+        } 
+
+        ++i;
+    }
+}
+
+static void execute_idle_hook()
+{
+    int i = 0;
+
+    while(i < IDLE_HOOK_COUNT) {
+        if(g_idle_hooks[i]) {
+            g_idle_hooks[i]();
+        }
+
+        i++;
+    }
+}
 
 extern void switch_to_thread_mode();
+
 
 void idle_thread(void * args)
 {
     (void)args;
 
     while(1) {
+        execute_idle_hook();
+
         __asm volatile ("wfi");
     }
 }
@@ -29,6 +74,9 @@ void find_high_ready_thread(void )
 {
     highest_priority_tcb_ptr = get_highest_ready_tcb();
     if(!highest_priority_tcb_ptr) {
+        OS_LOG("can not find highest_priority thread \r\n");
+        while(1) {
+        }
         return;
     }
 }
@@ -36,10 +84,12 @@ void find_high_ready_thread(void )
 /* must be called after create one thread */
 void start_os()
 {
+    int ret;
+
     /* create idle thread */
-    idle = create_thread(IDLE_STACK_SIZE,idle_thread,
+    ret = create_thread(&idle,idle_stack,IDLE_STACK_SIZE,idle_thread,
             IDLE_THREAD_PRIORITY,(void *)0,"idle_thread");
-    if(!idle) {
+    if(ret) {
         return;
     }
 
@@ -91,13 +141,17 @@ void schedule(void)
         return;
     }
 
-    if(highest_priority_tcb_ptr == idle) {
+    if(highest_priority_tcb_ptr == &idle) {
         mark_enter_idle();
     }
 
-    if(cur_tcb_ptr == idle) {
+    if(cur_tcb_ptr == &idle) {
         mark_exit_idle();
     }
+
+#if ENABLE(RTOS_DEBUG)
+    schedule_to_thread(highest_priority_tcb_ptr);
+#endif
     
     /* trigger pendsv exception */
     NVIC_INT_CTRL = NVIC_PENDSVSET;
@@ -106,7 +160,7 @@ void schedule(void)
     enable_interrupt();
 }
 
-stack_element *stack_init(thread_entry       p_entry, void          *p_arg, stack_element       *p_stk_base, uint32_t       stk_size)
+stack_element *stack_init(thread_entry p_entry, void *p_arg, stack_element *p_stk_base, uint32_t stk_size)
 {
     stack_element  *p_stk;
 
@@ -133,16 +187,11 @@ stack_element *stack_init(thread_entry       p_entry, void          *p_arg, stac
     return (p_stk);
 }
 
-tcb * create_thread(uint32_t stack_size, thread_entry entry,task_priority priority,void * arg,const char * name)
-{
-    tcb * m_tcb = (tcb *)allocate(sizeof(tcb));
-    if(!m_tcb) {
-        return NULL;
-    }
 
-    stack_element * stack = (stack_element *) allocate(stack_size * sizeof(stack_element));
-    if(!stack) {
-        goto error_handle;
+int create_thread(tcb * m_tcb, stack_element* stack,uint32_t stack_size, thread_entry entry,task_priority priority,void * arg,const char * name)
+{
+    if(!m_tcb) {
+        return ERR_FAIL;
     }
 
     m_tcb->stack_array  = stack;
@@ -163,14 +212,7 @@ tcb * create_thread(uint32_t stack_size, thread_entry entry,task_priority priori
     add_to_ready_rb_tree(m_tcb);
     enable_interrupt();
 
-    return m_tcb;
-
-error_handle:
-    if(m_tcb) {
-        deallocate(m_tcb);
-    }
-
-    return NULL;
+    return 0;
 }
 
 void destroy_thread(tcb * thread)
@@ -178,12 +220,13 @@ void destroy_thread(tcb * thread)
     if(!thread)
         return;
 
-    if(thread->stack_array)
-        deallocate(thread->stack_array);
-
-    deallocate(thread);
+    thread->state = TASK_NONE;
+    
 }
 
-
+const char * get_current_thread_name()
+{
+    return cur_tcb_ptr ? cur_tcb_ptr->name : NULL;
+}
 
 

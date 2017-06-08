@@ -10,6 +10,8 @@
 void sys_tick_init(void);
 uint32_t get_sys_tick();
 
+void update_systick(uint32_t ticks);
+int get_time_gap(uint32_t t);
 
 void mark_start_tick();
 void mark_enter_idle();

@@ -7,4 +7,6 @@
 /* feature control */
 #define ENABLE_CALCULATE_CPU_LOAD  1
 
+//#define ENABLE_RTOS_DEBUG 1
+
 #endif //_KERNEL_CONFIG_H_

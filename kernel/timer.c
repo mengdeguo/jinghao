@@ -1,6 +1,4 @@
-#include "timer.h"
-#include "mutex.h"
-#include "time.h"
+#include "kernel_header.h"
 
 struct timer_manager
 {
@@ -14,7 +12,7 @@ static struct timer_manager manager;
 void init_timer_manager(void)
 {
     manager.count = 0;
-    mutex_init(&manager.mutex,RECU_NORMAL);
+    mutex_init(&manager.mutex,RECUSIVE);
     INIT_LIST_HEAD(&manager.head);
 }
 
@@ -27,6 +25,8 @@ void init_timer(struct timer * timer,timer_handle handle,void * param,uint32_t p
     timer->period_ticks = MS_TO_TICKS(period_ms);
     timer->delay_ticks  = MS_TO_TICKS(delay_ms);
     timer->type         = type;
+
+    timer->status       = TIMER_DEACTIVE;
 }
 
 static void add_timer_without_lock(struct timer * timer)
@@ -64,6 +64,8 @@ int start_timer(struct timer * timer)
     /* compare dealy time, then add timer to correct position */
     mutex_lock(&manager.mutex);
 
+    timer->status = TIMER_ACTIVE;
+
     add_timer_without_lock(timer);
 
     mutex_unlock(&manager.mutex);
@@ -86,6 +88,7 @@ int stop_timer(struct timer * timer)
         
         struct timer * cur = list_entry(iter,struct timer,list);
         if(cur == timer) {
+            timer->status = TIMER_DEACTIVE;
             list_del(&timer->list);
             break;
         }
@@ -126,12 +129,14 @@ void timer_ticks_procedure(void)
         manager.count--;
 
         /* fire the timer */
-        (cur->handle)(cur);
+        (cur->handle)(cur->param);
         
+        cur->status = TIMER_DEACTIVE;
+
         /* check if the timer is periodic */
         if(cur->type == REPEAT) {
             cur->delay_ticks = cur->period_ticks;
-
+            cur->status = TIMER_ACTIVE;
             add_timer_without_lock(cur);
         }
     
@@ -140,3 +145,31 @@ void timer_ticks_procedure(void)
     mutex_unlock(&manager.mutex);
 }
 
+int is_timer_active(struct timer * timer)
+{
+    timer_status status;
+
+    /*if timer is deactive, do any change without worrying about thread safe,
+     * when timer is active, in function timer_ticks_procedure, the sentence delay_ms-- 
+     * may conflicts with this function, so just use the big lock :manager.mutex
+     * */
+    mutex_lock(&manager.mutex);
+    status = timer->status;
+    mutex_unlock(&manager.mutex);
+
+    return status == TIMER_ACTIVE ? 1 : 0;
+}
+
+void change_timer(struct timer * timer,uint32_t period_ms,uint32_t delay_ms)
+{
+    /*if timer is deactive, do any change without worrying about thread safe,
+     * when timer is active, in function timer_ticks_procedure, the sentence delay_ms-- 
+     * may conflicts with this function, so just use the big lock :manager.mutex
+     * */
+    mutex_lock(&manager.mutex);
+
+    timer->period_ticks = MS_TO_TICKS(period_ms);
+    timer->delay_ticks  = MS_TO_TICKS(delay_ms);
+
+    mutex_unlock(&manager.mutex);
+}

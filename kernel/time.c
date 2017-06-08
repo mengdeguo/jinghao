@@ -1,7 +1,5 @@
-#include "time.h"
+#include "kernel_header.h"
 #include "list.h"
-#include "thread.h"
-#include "scheduler.h"
 
 extern tcb * cur_tcb_ptr;
 

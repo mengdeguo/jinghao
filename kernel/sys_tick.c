@@ -1,8 +1,5 @@
 #include <stdint.h>
-#include "kernel_config.h"
-#include "sys_tick.h"
-#include "bottom_half.h"
-#include "timer.h"
+#include "kernel_header.h"
 #include "platform.h"
 
 
@@ -13,6 +10,16 @@ extern void delay_ticks_procedure(void );
 uint32_t get_sys_tick()
 {
     return sys_tick;
+}
+
+void update_systick(uint32_t ticks)
+{
+    sys_tick += ticks;
+}
+
+int get_time_gap(uint32_t t) 
+{
+    return (int)(sys_tick - t);
 }
 
 void SysTick_IRQHandler()

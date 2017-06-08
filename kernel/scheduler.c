@@ -1,4 +1,4 @@
-#include "scheduler.h"
+#include "kernel_header.h"
 
 static struct ready_task_rb ready_task = {
     .root           = RB_ROOT,

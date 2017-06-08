@@ -1,6 +1,4 @@
-#include "semaphore.h"
-#include "scheduler.h"
-#include "time.h"
+#include "kernel_header.h"
 
 extern tcb * cur_tcb_ptr;
 
@@ -56,6 +54,14 @@ int down_semaphore(struct semaphore * semaphore, uint32_t wait_ms)
         return 0;
     }
 
+    /* res_count <=0 */
+    if(wait_ms == KERNEL_NO_WAIT) {
+        cur_tcb_ptr->pend_ret = PEND_RET_FAIL;
+        enable_interrupt();
+
+        return ERR_FAIL;
+    }
+
     /* should pending the current thread */
 
     cur_tcb_ptr->state          = TASK_PENDING;
@@ -64,7 +70,7 @@ int down_semaphore(struct semaphore * semaphore, uint32_t wait_ms)
     remove_from_ready_rb_tree(cur_tcb_ptr);
     add_tcb_to_rb_tree(&semaphore->root,cur_tcb_ptr);
 
-    if(wait_ms > 0) {
+    if((wait_ms > 0) && (wait_ms != KERNEL_WAIT_FOREVER)) {
         cur_tcb_ptr->wait_ticks     = MS_TO_TICKS(wait_ms);     
         add_tcb_to_wait_list(cur_tcb_ptr);
     }
@@ -87,7 +93,7 @@ int up_semaphore(struct semaphore * semaphore)
     if(semaphore->state != SEMA_READY) {
         enable_interrupt();
 
-        return -1;
+        return ERR_FAIL;
     }
 
     semaphore->res_count ++;
@@ -103,7 +109,7 @@ int up_semaphore(struct semaphore * semaphore)
     if(!active_tcb) {
         enable_interrupt();
 
-        return -1;
+        return ERR_FAIL;
     }
 
     remove_tcb_from_rb_tree(&semaphore->root,active_tcb);
@@ -129,3 +135,24 @@ int up_semaphore(struct semaphore * semaphore)
     return 0;
 }
 
+int is_semaphore_inited(struct semaphore * semaphore)
+{
+    int ret;
+
+    disable_interrupt();
+    ret = semaphore->state == SEMA_READY;
+    enable_interrupt();
+
+    return ret;
+}
+
+int semaphore_get_resource_count(struct semaphore * semaphore)
+{
+    int count;
+
+    disable_interrupt();
+    count = semaphore->res_count;
+    enable_interrupt();
+
+    return count;
+}

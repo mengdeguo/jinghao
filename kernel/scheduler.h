@@ -3,13 +3,7 @@
 
 #include <stdint.h>
 #include "rb_int_operation.h"
-#include "thread.h"
 
-enum error_code
-{
-    ERR_FAIL    = -1,
-    ERR_TIMEOUT = -1000,
-};
 
 /*
  * rb-tree which stores all the ready task

@@ -2,7 +2,6 @@
 #define _MUTEX_H_
 
 #include <stdint.h>
-#include "thread.h"
 #include "rb_int_operation.h"
 
 typedef enum 
@@ -38,5 +37,7 @@ int mutex_lock(struct mutex *mutex);
 int mutex_unlock(struct mutex *mutex);
 void mutex_init(struct mutex *mutex, mutex_recusive recusive);
 int mutex_release(struct mutex * mutex);
+
+int is_mutex_init(struct mutex * mutex);
 
 #endif //_MUTEX_H_

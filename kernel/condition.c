@@ -1,4 +1,4 @@
-#include "condition.h"
+#include "kernel_header.h"
 
 extern tcb * cur_tcb_ptr;
 
@@ -16,7 +16,7 @@ void condition_init(struct condition * cond)
 int condition_release(struct condition * cond)
 {
     if(semaphore_release(&cond->sema) != 0) {
-        return -1;
+        return ERR_FAIL;
     }
 
     disable_interrupt();
@@ -32,7 +32,7 @@ int condition_wait(struct condition * cond, struct mutex * mutex,uint32_t wait_m
 {
     /* the mutex has already locked outsize the function, so it's threadsafe */
     if(cond->state != COND_READY){
-        return -1;
+        return ERR_FAIL;
     }
 
     int ret;
@@ -54,7 +54,7 @@ int condition_signal(struct condition * cond)
 {
     /* the mutex has already locked outsize the function, so it's threadsafe */
     if(cond->state != COND_READY) {
-        return -1;
+        return ERR_FAIL;
     }
 
     return up_semaphore(&cond->sema);

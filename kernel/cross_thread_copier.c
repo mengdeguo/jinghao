@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include "kernel_header.h"
 #include "list.h"
 #include "cross_thread_copier.h"
-#include "message_queue.h"
 #include "platform.h"
 
 static int general_run(general_cross_thread_task task)
@@ -203,7 +203,7 @@ int call_task_on_thread_queue(struct message_queue * queue,general_cross_thread_
         goto error_ret;
     }
 
-    ret = message_queue_append(queue,(void *)obj);
+    ret = message_queue_append(queue,(void *)&obj);
 error_ret:
     return ret;
 }
@@ -221,11 +221,9 @@ void thread_loop(void * arg)
 
     struct message_queue * queue = (struct message_queue *)arg;
 
-    message_queue_init(queue);
-
     while(1) {
         
-        ret = message_queue_get(queue, (void **)&msg,0);
+        ret = message_queue_get(queue, (void *)&msg, KERNEL_WAIT_FOREVER);
         if(ret) {
             continue;
         }
