@@ -160,7 +160,7 @@ int is_timer_active(struct timer * timer)
     return status == TIMER_ACTIVE ? 1 : 0;
 }
 
-void change_timer(struct timer * timer,uint32_t period_ms,uint32_t delay_ms)
+void change_timer(struct timer * timer,uint32_t period_ms,uint32_t delay_ms, timer_type type)
 {
     /*if timer is deactive, do any change without worrying about thread safe,
      * when timer is active, in function timer_ticks_procedure, the sentence delay_ms-- 
@@ -170,6 +170,7 @@ void change_timer(struct timer * timer,uint32_t period_ms,uint32_t delay_ms)
 
     timer->period_ticks = MS_TO_TICKS(period_ms);
     timer->delay_ticks  = MS_TO_TICKS(delay_ms);
+    timer->type         = type;
 
     mutex_unlock(&manager.mutex);
 }

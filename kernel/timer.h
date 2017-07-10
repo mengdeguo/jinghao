@@ -34,6 +34,6 @@ int start_timer(struct timer * timer);
 int stop_timer(struct timer * timer);
 void timer_ticks_procedure(void);
 int is_timer_active(struct timer * timer);
-void change_timer(struct timer * timer,uint32_t period_ms,uint32_t delay_ms);
+void change_timer(struct timer * timer,uint32_t period_ms,uint32_t delay_ms,timer_type type);
 
 #endif //_TIMER_H_
