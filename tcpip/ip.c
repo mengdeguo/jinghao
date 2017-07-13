@@ -1,6 +1,9 @@
+#include "kernel_header.h"
 #include "tcpip.h"
 
 static struct in_addr ip_broadcast_address = {.s_addr = 0xffffffff,};
+
+static uint16_t ip_hdr_id = 0;
 
 struct in_addr * get_ip_broadcast_address()
 {
@@ -23,7 +26,7 @@ int is_ip_multicast_address(struct in_addr * ip)
     return ip->s_addr_arr[0] == 224;
 }
 
-static uint16_t get_ip_hdr_checksum(uint16_t * data, int count) 
+uint16_t smart_ip_checksum(uint16_t * data, int count) 
 {
     uint32_t sum = 0;
 
@@ -31,7 +34,10 @@ static uint16_t get_ip_hdr_checksum(uint16_t * data, int count)
         sum += *data++;
     }
     
+    /* (sum >> 16) contains all the carry bits*/ 
     sum  = (sum >> 16) + (sum & 0xFFFF);
+
+    /* add carry bit of the last operation */
 	sum += (sum >> 16);
 	return (uint16_t)(~sum & 0xFFFF);
 }
@@ -47,6 +53,7 @@ int process_ip_send(struct sk_buff * skb, struct in_addr * dst_ip, uint8_t proto
     ip_hdr->vhl = (IPV4_VERSION & 0x0f) << 4 | ((SIZEOF_IP_HDR >> 2) & 0x0f);
     ip_hdr->tos = tos;
     ip_hdr->len = htons(payload_len);
+    ip_hdr->id = htons(++ip_hdr_id);
     ip_hdr->offset = htons(IPV4_DF);
     ip_hdr->ttl = ttl;
     ip_hdr->proto = proto;
@@ -69,7 +76,7 @@ int process_ip_send(struct sk_buff * skb, struct in_addr * dst_ip, uint8_t proto
 
     /* calculate checksum */
     ip_hdr->chksum = 0;
-    ip_hdr->chksum = get_ip_hdr_checksum((uint16_t *)ip_hdr,SIZEOF_IP_HDR >> 1);
+    ip_hdr->chksum = smart_ip_checksum((uint16_t *)ip_hdr,SIZEOF_IP_HDR >> 1);
 
     /*
      * using process_eth_send to send the package
@@ -101,6 +108,8 @@ int process_icmp_recv(struct sk_buff * skb, struct net_ip_hdr * ip_hdr)
         free_skb(skb);
         break;
     }
+
+    return 0;
 }
 
 int process_ip_recv(struct sk_buff * skb)
@@ -120,7 +129,7 @@ int process_ip_recv(struct sk_buff * skb)
     }
 
     /*checksum*/
-    if(get_ip_hdr_checksum((uint16_t *)ip_hdr,get_ip_hdr_len(ip_hdr) >> 1)) {
+    if(smart_ip_checksum((uint16_t *)ip_hdr,get_ip_hdr_len(ip_hdr) >> 1)) {
         free_skb(skb);
         return NET_PKT_CHKSUM_ERR;
     }
@@ -137,8 +146,7 @@ int process_ip_recv(struct sk_buff * skb)
     switch(ip_hdr->proto)
     {
     case IPPROTO_UDP:
-        OS_LOG("receive an udp packet \r\n");
-        free_skb(skb);
+        process_udp_recv(skb,ip_hdr);
         break;
 
     case IPPROTO_TCP:
@@ -150,9 +158,12 @@ int process_ip_recv(struct sk_buff * skb)
         process_icmp_recv(skb,ip_hdr);
         break;
     default:
+        /*FIXME: should send icmp packet back*/
         free_skb(skb);
         break;
     }
+
+    return 0;
 
 }
 

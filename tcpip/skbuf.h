@@ -9,7 +9,7 @@ struct sk_buff
     /* when received */
     struct net_device   *net_if;
 
-    struct sock         *sock;          /* point to the socket or netconnetion which the packet belongs to*/
+    struct socket       *sock;          /* point to the socket or netconnetion which the packet belongs to*/
 
     uint8_t             *head;          /* point the head of buf memory area*/
     uint8_t             *end;           /* point to the end the memory area*/
@@ -32,7 +32,7 @@ int init_skb_allocator();
 struct sk_buff *alloc_skb(size_t size);
 void free_skb(struct sk_buff * skb);
 void skb_reserve(struct sk_buff * skb,int len);
-int skb_cpy_pkt(struct sk_buff * skb,uint8_t * data, uint16_t datalen);
+int skb_cpy_pkt(struct sk_buff * skb,const uint8_t * data, uint16_t datalen);
 uint8_t *skb_pull(struct sk_buff *skb, unsigned int len);
 uint8_t *skb_push(struct sk_buff *skb, unsigned int len);
 uint8_t *skb_put(struct sk_buff *skb, unsigned int len);

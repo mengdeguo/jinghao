@@ -45,6 +45,9 @@ struct arp_item
 }__ALIGN(sizeof(void *));
 
 int init_arp();
-int generate_arp_request(struct net_device * nif,struct in_addr * dst_ip);
+void send_gratuitous_arp_request(struct net_device *nif);
+int process_arp_recv(struct sk_buff * skb);
+void netdev_arp_cache_clean(struct net_device * nif);
+int process_eth_send(struct sk_buff * skb);
 
 #endif //_ARP_H_

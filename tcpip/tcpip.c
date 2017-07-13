@@ -1,6 +1,6 @@
-#include "tcpip.h"
 #include "list.h"
 #include "kernel_header.h"
+#include "tcpip.h"
 #include "platform.h"
 
 static struct net_device netdev_loop;
@@ -31,6 +31,8 @@ int register_netdev(struct net_device *dev)
     list_add(&dev->list,&netdev_list.head);
     netdev_list.netdev_count ++;
     mutex_unlock(&netdev_list.mutex);
+
+    return 0;
 }
 
 void set_default_netif(struct net_device * nif)
@@ -40,6 +42,27 @@ void set_default_netif(struct net_device * nif)
     mutex_unlock(&netdev_list.mutex);
 }
 
+struct net_device * find_nif_by_ip(struct in_addr * ip)
+{
+    struct net_device * nif = NULL;
+    struct list_head * iter;
+
+    mutex_lock(&netdev_list.mutex);
+
+    list_for_each(iter,&netdev_list.head) {
+        nif = container_of(iter,struct net_device,list);
+        if(ip->s_addr == nif->ip.s_addr) {
+            mutex_unlock(&netdev_list.mutex);
+            return nif;
+        }
+    }
+
+    mutex_unlock(&netdev_list.mutex);
+
+    return netdev_list.default_nif;
+}
+
+/* simple router algorithm used by ip layer */
 struct net_device * search_appropriate_nif(struct in_addr * ip)
 {
     struct net_device * nif = NULL;
@@ -53,10 +76,8 @@ struct net_device * search_appropriate_nif(struct in_addr * ip)
                 ((ip->s_addr & nif->netmask.s_addr) == (nif->ip.s_addr & nif->netmask.s_addr))) {
 
             mutex_unlock(&netdev_list.mutex);
-
             return nif;
         }
-
     }
 
     mutex_unlock(&netdev_list.mutex);
@@ -193,8 +214,10 @@ int tcpip_init()
     init_netdev_list();
     init_netdev_loop();
     init_skb_allocator();
+    init_socket_allocator();
 
     init_arp();
+    init_udp();
 
     return 0;
 }

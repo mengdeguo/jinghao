@@ -1,4 +1,9 @@
+#include <string.h>
+#include "kernel_header.h"
 #include "tcpip.h"
+
+static int generate_arp_request(struct net_device * nif,struct in_addr * dst_ip);
+static void destroy_arp_item(struct arp_item * entry);
 
 #define ARP_ITEM_COUNT   (10)
 
@@ -93,7 +98,7 @@ static void arp_item_timer_handle(void *param)
     mutex_unlock(&arp_cache.lock);
 }
 
-void init_arp_item(struct arp_item *entry,struct net_device * nif,struct in_addr * ip)
+static void init_arp_item(struct arp_item *entry,struct net_device * nif,struct in_addr * ip)
 {
     memset(entry,0,sizeof(struct arp_item));
 
@@ -112,7 +117,7 @@ void init_arp_item(struct arp_item *entry,struct net_device * nif,struct in_addr
     entry->try_count = 0;
 }
 
-void destroy_arp_item(struct arp_item * entry)
+static void destroy_arp_item(struct arp_item * entry)
 {
     if(is_timer_active(&entry->timer)) {
         stop_timer(&entry->timer);
@@ -129,7 +134,7 @@ void destroy_arp_item(struct arp_item * entry)
     }
 }
 
-int generate_arp_request(struct net_device * nif,struct in_addr * dst_ip)
+static int generate_arp_request(struct net_device * nif,struct in_addr * dst_ip)
 {
     int ret = -1;
 
@@ -143,7 +148,7 @@ int generate_arp_request(struct net_device * nif,struct in_addr * dst_ip)
         skb_tail(skb) += SIZEOF_ETH_HDR + SIZEOF_ARP_HDR;
         skb_data_len(skb) = SIZEOF_ARP_HDR;
 
-        struct net_arp_hdr * arp_hdr = skb_data(skb);
+        struct net_arp_hdr * arp_hdr = (struct net_arp_hdr *)skb_data(skb);
         
         arp_hdr->hwtype = htons(ARP_HW_ETH);
         arp_hdr->protocol = htons(ETHTYPE_IP);
@@ -171,7 +176,7 @@ void send_gratuitous_arp_request(struct net_device *nif)
 /* reuse the incoming sk_buff to send arp reply */
 static void generate_arp_reply(struct net_device *nif, struct sk_buff *skb)
 {
-    struct net_arp_hdr * arp_hdr = skb_data(skb);
+    struct net_arp_hdr * arp_hdr = (struct net_arp_hdr *)skb_data(skb);
 
     /*maybe someof these field can be resued */
     arp_hdr->hwtype = htons(ARP_HW_ETH);
@@ -193,7 +198,7 @@ static void generate_arp_reply(struct net_device *nif, struct sk_buff *skb)
  * IP packet also carry <mac.ip> pair(ip in ip header, mac in eth_hdr),
  * should I call this function when receive an ip packet ?
  * */
-void arp_update(struct net_device *nif,struct in_addr * src_ip,uint8_t src_mac[MAC_ADDR_LEN])
+static void arp_update(struct net_device *nif,struct in_addr * src_ip,uint8_t src_mac[MAC_ADDR_LEN])
 {
 
     mutex_lock(&arp_cache.lock);
@@ -254,8 +259,6 @@ void arp_update(struct net_device *nif,struct in_addr * src_ip,uint8_t src_mac[M
 
 int process_arp_recv(struct sk_buff * skb)
 {
-    int ret;
-
     if(!skb) {
         return NET_PARAMS_ERR;
     }
@@ -265,7 +268,7 @@ int process_arp_recv(struct sk_buff * skb)
         return NET_ARP_PROTO_ERR;
     }
 
-    struct net_arp_hdr * arp_hdr = skb_data(skb);
+    struct net_arp_hdr * arp_hdr = (struct net_arp_hdr *)skb_data(skb);
     struct net_device  * nif = skb_net_if(skb);
 
     if(ntohs(arp_hdr->protocol) != ETHTYPE_IP || ntohs(arp_hdr->hwtype) != ARP_HW_ETH) {
@@ -282,7 +285,7 @@ int process_arp_recv(struct sk_buff * skb)
     /* Even for the arp request, it also carries a useful arp entry,
      * so we should add this item to arp_cache first
      **/ 
-    arp_update(nif,&arp_hdr->src_ip,&arp_hdr->src_mac);
+    arp_update(nif,&arp_hdr->src_ip,arp_hdr->src_mac);
 
     /* arp request ? if so, give quick response*/
     if(ntohs(arp_hdr->opcode) == ARP_REQUEST)  {
@@ -326,13 +329,13 @@ void netdev_arp_cache_clean(struct net_device * nif)
 int process_eth_send(struct sk_buff * skb) 
 {
 
-    uint8_t dst_mac[6];
-    struct net_ip_hdr *ip_hdr = skb_data(skb);
+    uint8_t dst_mac[MAC_ADDR_LEN];
+    struct net_ip_hdr *ip_hdr = (struct net_ip_hdr *)skb_data(skb);
     struct in_addr *dst_ip = &ip_hdr->dst_ip;
     struct net_device * nif = skb_net_if(skb);
 
     /*check is broadcast or multicast packet */
-    if(!memcmp(&dst_ip->s_addr,get_ip_broadcast_address())) {
+    if(!memcmp(dst_ip,get_ip_broadcast_address(),sizeof(struct in_addr))) {
         return fill_eth_hdr_send(skb,get_eth_broadcast_addr(),ETHTYPE_IP);
     }
 

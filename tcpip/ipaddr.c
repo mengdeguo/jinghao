@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <ctype.h>
 
+#include "kernel_header.h"
 #include "tcpip.h"
 
 char *ntoa_impl(unsigned long s_addr, char *buf, int buflen)

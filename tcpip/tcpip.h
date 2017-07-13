@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include "list.h"
 #include "compiler_attribute.h"
-#include "kernel_header.h"
 
 enum net_error
 {
@@ -42,7 +41,7 @@ enum net_error
 
 #define IP4_ADDR_LOOPBACK  0x7f000001
 #define IP4_NETMASK_LOOPBACK 0x7f000000
-#define IP4_ADDR_ANY       0
+#define INADDR_ANY          0
 
 typedef uint16_t sa_family_t;
 typedef size_t socklen_t;
@@ -59,10 +58,10 @@ struct in_addr {
 };
 
 /** Socket type */
-enum net_sock_type {
+typedef enum {
 	SOCK_STREAM = 1,
 	SOCK_DGRAM,
-};
+}net_sock_type;
 
 #define ex_endian16(x) ((uint16_t) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8)))
 #define ex_endian32(x) ((uint32_t) ((((x) >> 24) & 0xff) | \
@@ -90,13 +89,6 @@ struct sockaddr_in {
 			sizeof(uint16_t) - sizeof(struct in_addr)];
 };
 
-struct net_udp_hdr {
-	uint16_t src_port;
-	uint16_t dst_port;
-	uint16_t len;
-	uint16_t chksum;
-} __PACKED;
-
 struct net_tcp_hdr {
 	uint16_t src_port;
 	uint16_t dst_port;
@@ -110,10 +102,6 @@ struct net_tcp_hdr {
 	uint8_t optdata[0];
 } __PACKED;
 
-struct sock
-{
-    int mark;
-};
 
 /* comes from zephyr*/
 struct dhcp
@@ -161,6 +149,9 @@ struct dhcp
 
 /*****************************************************************/
 
+struct net_device;
+struct sk_buff;
+
 typedef void (*netdev_status_notifier)(struct net_device *);
 typedef int (*netdev_output)(struct sk_buff * skb);
 
@@ -199,10 +190,12 @@ struct net_device
 
 #include "netobj_cache.h"
 #include "skbuf.h"
+#include "socket.h"
 #include "ethernet.h"
 #include "ipaddr.h"
 #include "arp.h"
 #include "ip.h"
+#include "udp.h"
 
 int tcpip_init();
 void setup_netdev(struct net_device * dev,const char * name);
@@ -210,7 +203,12 @@ void set_netdev_drv_private(struct net_device *dev,void * data);
 void * get_netdev_drv_private(struct net_device *dev);
 int register_netdev(struct net_device *dev);
 struct net_device * search_appropriate_nif(struct in_addr * ip);
-
+struct net_device * find_nif_by_ip(struct in_addr * ip);
+void set_netdev_down(struct net_device * dev);
+void set_netdev_up(struct net_device * dev);
+void set_netdev_status_notifier(struct net_device *dev, netdev_status_notifier notifier);
+void set_netdev_output_op(struct net_device *dev,netdev_output output);
+void set_default_netif(struct net_device * nif);
 
 extern struct message_queue tcpip_queue;
 

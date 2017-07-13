@@ -69,4 +69,10 @@ struct net_icmp_hdr {
 	uint16_t chksum;
 } __PACKED;
 
+struct in_addr * get_ip_broadcast_address();
+int is_ip_multicast_address(struct in_addr * ip);
+int process_ip_recv(struct sk_buff * skb);
+int process_icmp_recv(struct sk_buff * skb, struct net_ip_hdr * ip_hdr);
+int process_ip_send(struct sk_buff * skb, struct in_addr * dst_ip, uint8_t proto, uint8_t tos, uint8_t ttl);
+
 #endif //_IP_H_

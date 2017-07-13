@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include "kernel_header.h"
 #include "platform.h"
 #include "tcpip.h"
 
@@ -95,7 +96,7 @@ uint8_t *skb_pull(struct sk_buff *skb, unsigned int len)
 	return skb->data;
 }
 
-int skb_cpy_pkt(struct sk_buff * skb,uint8_t * data, uint16_t datalen)
+int skb_cpy_pkt(struct sk_buff * skb,const uint8_t * data, uint16_t datalen)
 {
     int free_space = _skb_free_space(skb);
     

@@ -1,3 +1,5 @@
+#include <string.h>
+#include "kernel_header.h"
 #include "tcpip.h"
 #include "platform.h"
 
@@ -5,7 +7,7 @@ static uint8_t eth_broascast_addr[MAC_ADDR_LEN] = {0xff,0xff,0xff,0xff,0xff,0xff
 
 uint8_t * get_eth_broadcast_addr()
 {
-    return &eth_broascast_addr;
+    return eth_broascast_addr;
 }
 
 int is_eth_broadcast_addr(uint8_t eth_addr[MAC_ADDR_LEN])
@@ -54,6 +56,8 @@ int process_eth_recv(struct sk_buff* skb)
             free_skb(skb);
             break;
     }
+
+    return 0;
 }
 
 int fill_eth_hdr_send(struct sk_buff *skb,uint8_t dst_mac_addr[MAC_ADDR_LEN],uint16_t eth_type)

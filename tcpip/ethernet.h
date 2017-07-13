@@ -28,4 +28,10 @@ struct eth_llc_hdr {
 
 #define SIZEOF_ETH_LLC_HDR  (sizeof(struct eth_llc_hdr))
 
+uint8_t * get_eth_broadcast_addr();
+int is_eth_broadcast_addr(uint8_t eth_addr[MAC_ADDR_LEN]);
+int is_eth_multicast_addr(uint8_t *eth_addr);
+int process_eth_recv(struct sk_buff* skb);
+int fill_eth_hdr_send(struct sk_buff *skb,uint8_t dst_mac_addr[MAC_ADDR_LEN],uint16_t eth_type);
+
 #endif //_ETHERNET_H_
